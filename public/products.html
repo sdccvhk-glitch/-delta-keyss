@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Products — DELTA.KEYS</title><link rel="stylesheet" href="/styles.css"></head>
+<body class="store-page">
+<header class="topbar"><a class="wordmark" href="/">MULTI SERVER PANEL</a><button class="hamburger" id="menuToggle">☰</button></header>
+<div class="side-menu" id="sideMenu" hidden><a href="/">⌂ <span>Home</span></a><a href="/products">▣ <span>Products</span></a><a href="/status">⌕ <span>Check Order</span></a><a href="/payment">▤ <span>Payment</span></a><a href="/admin">↪ <span>Login</span></a></div>
+<main class="catalog-wrap">
+  <div class="catalog-head"><div class="kicker">MULTI SERVER PANEL</div><h1>Choose your access</h1><p>Pick a product, select your duration, then continue to payment.</p></div>
+  <div id="products" class="catalog-grid"><div class="access-card product-loading">Loading products…</div></div>
+</main>
+<script>
+const m=document.getElementById('sideMenu');document.getElementById('menuToggle').onclick=()=>m.hidden=!m.hidden;
+(async()=>{
+ const e=document.getElementById('products');
+ try{
+  const r=await fetch('/api/products'),ps=await r.json();
+  e.innerHTML=ps.map(p=>`<article class="product-tile">
+    <span class="product-icon">◆</span><span class="product-badge">${esc(p.badge||'KEY')}</span>
+    <h2>${esc(p.name)}</h2><p>${esc(p.description||'Premium digital access')}</p>
+    <strong>₹${Number(p.price).toFixed(0)}</strong>
+    <a class="purchase-btn" href="/payment?product=${encodeURIComponent(p.id)}">Purchase Access <span>→</span></a>
+  </article>`).join('');
+ }catch(x){e.innerHTML='<div class="access-card">Unable to load products.</div>'}
+})();
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
+</script></body></html>
