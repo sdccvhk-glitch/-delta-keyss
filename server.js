@@ -1,0 +1,323 @@
+const express = require("express");
+const fs = require("fs");
+const path = require("path");
+const crypto = require("crypto");
+const Razorpay = require("razorpay");
+
+const app = express();
+const PORT = Number(process.env.PORT || 3000);
+const DATA_DIR = path.join(__dirname, "data");
+const DATA_FILE = path.join(DATA_DIR, "store.json");
+
+app.use(express.json({ limit: "1mb", verify: (req, res, buf) => { req.rawBody = Buffer.from(buf); } }));
+app.use(express.urlencoded({ extended: true }));
+
+app.get("/admin", (req, res) => res.sendFile(path.join(__dirname, "public", "admin-login.html")));
+app.get("/admin/", (req, res) => res.sendFile(path.join(__dirname, "public", "admin-login.html")));
+app.get("/admin/dashboard", (req, res) => res.sendFile(path.join(__dirname, "public", "admin-dashboard.html")));
+app.get("/admin-login", (req, res) => res.sendFile(path.join(__dirname, "public", "admin-login.html")));
+app.get("/admin-login.html", (req, res) => res.sendFile(path.join(__dirname, "public", "admin-login.html")));
+app.get("/admin/dashboard.html", (req, res) => res.sendFile(path.join(__dirname, "public", "admin-dashboard.html")));
+app.use(express.static(path.join(__dirname, "public")));
+
+function defaultPlans() {
+  return [
+    { id: "5-hours", name: "5 Hours", durationHours: 5, price: 49, active: true },
+    { id: "1-day", name: "1 Day", durationHours: 24, price: 79, active: true },
+    { id: "7-days", name: "7 Days", durationHours: 168, price: 149, active: true },
+    { id: "30-days", name: "30 Days", durationHours: 720, price: 299, active: true },
+    { id: "lifetime", name: "Lifetime", durationHours: 0, price: 499, active: true }
+  ];
+}
+
+function ensureStore() {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (!fs.existsSync(DATA_FILE)) {
+    const initial = {
+      products: [
+        { id: "delta-basic", name: "DELTA Basic Key", price: 99, stock: 50, description: "Digital access key.", badge: "POPULAR", plans: defaultPlans() },
+        { id: "delta-pro", name: "DELTA Pro Key", price: 199, stock: 25, description: "Premium digital access key.", badge: "PRO", plans: defaultPlans() },
+        { id: "delta-ultra", name: "DELTA Ultra Key", price: 299, stock: 10, description: "Ultimate digital access key.", badge: "ULTRA", plans: defaultPlans() }
+      ],
+      orders: [],
+      keyPool: []
+    };
+    fs.writeFileSync(DATA_FILE, JSON.stringify(initial, null, 2));
+  }
+}
+ensureStore();
+
+function readStore() {
+  const store = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
+  for (const p of store.products || []) {
+    if (!Array.isArray(p.plans) || !p.plans.length) {
+      p.plans = [{ id: "default", name: "Default", durationHours: 0, price: Number(p.price || 0), active: true }];
+    }
+  }
+  if (!Array.isArray(store.keyPool)) store.keyPool = [];
+  return store;
+}
+function writeStore(data) {
+  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+}
+function findPlan(product, planId) {
+  return (product.plans || []).find(x => x.id === planId && x.active !== false);
+}
+function publicProduct(p) {
+  return { ...p, plans: (p.plans || []).filter(x => x.active !== false) };
+}
+function publicOrder(order) {
+  return {
+    id: order.id, productId: order.productId, productName: order.productName,
+    planId: order.planId, duration: order.duration, amount: order.amount,
+    paymentReference: order.paymentReference || "", status: order.status,
+    key: order.status === "paid" ? order.key : "",
+    createdAt: order.createdAt, updatedAt: order.updatedAt
+  };
+}
+function adminAuth(req, res, next) {
+  const auth = req.headers.authorization || "";
+  if (!auth.startsWith("Basic ")) return res.status(401).json({ error: "Admin login required." });
+  let decoded = "";
+  try { decoded = Buffer.from(auth.slice(6), "base64").toString("utf8"); } catch {}
+  const split = decoded.indexOf(":");
+  const user = split >= 0 ? decoded.slice(0, split) : "";
+  const pass = split >= 0 ? decoded.slice(split + 1) : "";
+  const expectedUser = process.env.ADMIN_USER || "admin";
+  const expectedPass = process.env.ADMIN_PASSWORD || "change-this-password";
+  if (user !== expectedUser || pass !== expectedPass) return res.status(401).json({ error: "Invalid username or password." });
+  next();
+}
+function razorpayClient() {
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  if (!keyId || !keySecret) return null;
+  return new Razorpay({ key_id: keyId, key_secret: keySecret });
+}
+function allocateKey(store, productId, planId) {
+  const pool = Array.isArray(store.keyPool) ? store.keyPool : [];
+  const idx = pool.findIndex(item => {
+    if (typeof item === "string") return true; // legacy unassigned key
+    return item.productId === productId && item.planId === planId;
+  });
+  if (idx < 0) return null;
+  const item = pool.splice(idx, 1)[0];
+  return typeof item === "string" ? item : item.key;
+}
+function fulfillPaidOrder(store, order, paymentId) {
+  if (order.status === "paid" && order.key) return order;
+  const key = allocateKey(store, order.productId, order.planId);
+  if (!key) throw new Error("No key is available for this product and duration.");
+  order.key = key;
+  order.status = "paid";
+  order.paymentReference = paymentId || order.paymentReference || "";
+  order.paidAt = new Date().toISOString();
+  order.updatedAt = order.paidAt;
+  const product = store.products.find(p => p.id === order.productId);
+  if (product) product.stock = Math.max(0, Number(product.stock || 0) - 1);
+  return order;
+}
+
+app.get("/", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
+app.get("/products", (req, res) => res.sendFile(path.join(__dirname, "public", "products.html")));
+app.get("/payment", (req, res) => res.sendFile(path.join(__dirname, "public", "payment.html")));
+app.get("/status", (req, res) => res.sendFile(path.join(__dirname, "public", "status.html")));
+
+app.get("/api/health", (req, res) => res.json({ ok: true, app: "DELTA.KEYS", paymentMode: razorpayClient() ? "razorpay-auto" : "gateway-not-configured" }));
+app.get("/api/products", (req, res) => res.json(readStore().products.map(publicProduct)));
+app.get("/api/payment-info", (req, res) => res.json({
+  enabled: !!razorpayClient(),
+  keyId: process.env.RAZORPAY_KEY_ID || "",
+  payeeName: process.env.PAYMENT_PAYEE_NAME || "DELTA.KEYS"
+}));
+
+app.post("/api/payments/create-order", async (req, res) => {
+  try {
+    const rp = razorpayClient();
+    if (!rp) return res.status(503).json({ error: "Automatic payment gateway is not configured on the server." });
+    const { productId, planId } = req.body || {};
+    const store = readStore();
+    const product = store.products.find(p => p.id === productId);
+    const plan = product && findPlan(product, planId);
+    if (!product || !plan) return res.status(400).json({ error: "Product or duration not found." });
+    if (Number(product.stock || 0) < 1) return res.status(400).json({ error: "This product is out of stock." });
+    const available = store.keyPool.some(item => typeof item === "string" || (item.productId === product.id && item.planId === plan.id));
+    if (!available) return res.status(400).json({ error: "No key is available for this duration yet." });
+    const localId = "DK-" + crypto.randomBytes(5).toString("hex").toUpperCase();
+    const rorder = await rp.orders.create({
+      amount: Math.round(Number(plan.price) * 100),
+      currency: "INR",
+      receipt: localId,
+      notes: { productId: product.id, planId: plan.id, localOrderId: localId }
+    });
+    const now = new Date().toISOString();
+    store.orders.unshift({
+      id: localId, productId: product.id, productName: product.name,
+      planId: plan.id, duration: plan.name, amount: Number(plan.price),
+      paymentReference: "", razorpayOrderId: rorder.id, status: "pending", key: "",
+      createdAt: now, updatedAt: now
+    });
+    writeStore(store);
+    res.json({ keyId: process.env.RAZORPAY_KEY_ID, orderId: rorder.id, amount: rorder.amount, currency: rorder.currency, localOrderId: localId, name: process.env.PAYMENT_PAYEE_NAME || "DELTA.KEYS", description: product.name + " — " + plan.name });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Could not create payment order." });
+  }
+});
+
+app.post("/api/payments/verify", (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body || {};
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) return res.status(400).json({ error: "Incomplete payment response." });
+    const store = readStore();
+    const order = store.orders.find(o => o.razorpayOrderId === razorpay_order_id);
+    if (!order) return res.status(404).json({ error: "Local order not found." });
+    const expected = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET || "").update(order.razorpayOrderId + "|" + razorpay_payment_id).digest("hex");
+    if (expected !== razorpay_signature) return res.status(400).json({ error: "Payment verification failed." });
+    fulfillPaidOrder(store, order, razorpay_payment_id);
+    writeStore(store);
+    res.json({ order: publicOrder(order) });
+  } catch (e) {
+    console.error(e);
+    res.status(400).json({ error: e.message || "Payment could not be verified." });
+  }
+});
+
+// Webhook: configure this URL in the payment provider dashboard.
+app.post("/api/payments/webhook", (req, res) => {
+  const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  if (!secret) return res.status(503).send("Webhook secret not configured.");
+  const signature = req.headers["x-razorpay-signature"] || "";
+  const expected = crypto.createHmac("sha256", secret).update(req.rawBody || Buffer.from("", "utf8")).digest("hex");
+  if (expected !== signature) return res.status(400).send("Invalid webhook signature.");
+  let payload;
+  try { payload = JSON.parse((req.rawBody || Buffer.from("", "utf8")).toString("utf8")); } catch { return res.status(400).send("Invalid JSON."); }
+  if (payload.event !== "order.paid" && payload.event !== "payment.captured") return res.json({ ok: true, ignored: true });
+  const rpOrderId = payload.payload?.order?.entity?.id || payload.payload?.payment?.entity?.order_id;
+  const paymentId = payload.payload?.payment?.entity?.id || "";
+  if (!rpOrderId) return res.json({ ok: true });
+  try {
+    const store = readStore();
+    const order = store.orders.find(o => o.razorpayOrderId === rpOrderId);
+    if (order && order.status !== "paid") {
+      fulfillPaidOrder(store, order, paymentId);
+      writeStore(store);
+    }
+  } catch (e) {
+    console.error("Webhook fulfillment:", e.message);
+  }
+  res.json({ ok: true });
+});
+
+app.get("/api/orders/:id", (req, res) => {
+  const order = readStore().orders.find(o => o.id === req.params.id);
+  if (!order) return res.status(404).json({ error: "Order not found." });
+  res.json({ order: publicOrder(order) });
+});
+
+app.get("/api/admin/data", adminAuth, (req, res) => {
+  const store = readStore();
+  res.json({
+    products: store.products, orders: store.orders.map(o => ({ ...o })),
+    keyPoolCount: (store.keyPool || []).length,
+    planCount: store.products.reduce((n,p) => n + (p.plans || []).length, 0)
+  });
+});
+
+app.put("/api/admin/orders/:id", adminAuth, (req, res) => {
+  const store = readStore();
+  const order = store.orders.find(o => o.id === req.params.id);
+  if (!order) return res.status(404).json({ error: "Order not found." });
+  const { status, key, customerName, customerContact } = req.body || {};
+  if (status && !["pending", "paid", "rejected"].includes(status)) return res.status(400).json({ error: "Invalid status." });
+  if (typeof key === "string") order.key = key.trim();
+  if (typeof customerName === "string") order.customerName = customerName.trim();
+  if (typeof customerContact === "string") order.customerContact = customerContact.trim();
+  if (status) order.status = status;
+  order.updatedAt = new Date().toISOString();
+  writeStore(store);
+  res.json({ order: publicOrder(order) });
+});
+
+app.post("/api/admin/keys", adminAuth, (req, res) => {
+  const keys = Array.isArray(req.body?.keys) ? req.body.keys : String(req.body?.keys || "").split(/\r?\n/);
+  const productId = String(req.body?.productId || "");
+  const planId = String(req.body?.planId || "");
+  const clean = keys.map(k => String(k).trim()).filter(Boolean);
+  if (!clean.length) return res.status(400).json({ error: "No keys supplied." });
+  if (!productId || !planId) return res.status(400).json({ error: "Select a product and duration before uploading keys." });
+  const store = readStore();
+  const product = store.products.find(p => p.id === productId);
+  if (!product || !findPlan(product, planId)) return res.status(400).json({ error: "Product or duration not found." });
+  store.keyPool = Array.isArray(store.keyPool) ? store.keyPool : [];
+  store.keyPool.push(...clean.map(key => ({ key, productId, planId })));
+  writeStore(store);
+  res.json({ added: clean.length, total: store.keyPool.length });
+});
+
+app.post("/api/admin/products", adminAuth, (req, res) => {
+  const store = readStore();
+  const { name, price, stock, description, badge, durationName, durationHours, durationPrice } = req.body || {};
+  if (!String(name || "").trim() || !Number.isFinite(Number(price)) || Number(price) < 0) return res.status(400).json({ error: "Product name and valid price are required." });
+  const planName = String(durationName || "Default").trim();
+  const plan = { id: "plan-" + crypto.randomBytes(4).toString("hex"), name: planName, durationHours: Math.max(0, Number(durationHours || 0)), price: Number(durationPrice ?? price), active: true };
+  const product = {
+    id: "product-" + crypto.randomBytes(5).toString("hex"),
+    name: String(name).trim(), price: Number(price), stock: Math.max(0, Math.floor(Number(stock || 0))),
+    description: String(description || "").trim(), badge: String(badge || "NEW").trim(), plans: [plan]
+  };
+  store.products.push(product); writeStore(store); res.status(201).json({ product });
+});
+
+app.put("/api/admin/products/:id", adminAuth, (req, res) => {
+  const store = readStore();
+  const product = store.products.find(p => p.id === req.params.id);
+  if (!product) return res.status(404).json({ error: "Product not found." });
+  const { name, price, stock, description, badge } = req.body || {};
+  if (typeof name === "string" && name.trim()) product.name = name.trim();
+  if (Number.isFinite(Number(price)) && Number(price) >= 0) product.price = Number(price);
+  if (Number.isFinite(Number(stock)) && Number(stock) >= 0) product.stock = Math.floor(Number(stock));
+  if (typeof description === "string") product.description = description.trim();
+  if (typeof badge === "string") product.badge = badge.trim();
+  writeStore(store); res.json({ product });
+});
+
+app.post("/api/admin/plans", adminAuth, (req, res) => {
+  const store = readStore();
+  const { productId, name, durationHours, price } = req.body || {};
+  const product = store.products.find(p => p.id === productId);
+  if (!product) return res.status(404).json({ error: "Product not found." });
+  if (!String(name || "").trim() || !Number.isFinite(Number(price)) || Number(price) < 0) return res.status(400).json({ error: "Duration name and valid price are required." });
+  product.plans = Array.isArray(product.plans) ? product.plans : [];
+  const plan = { id: "plan-" + crypto.randomBytes(4).toString("hex"), name: String(name).trim(), durationHours: Math.max(0, Number(durationHours || 0)), price: Number(price), active: true };
+  product.plans.push(plan);
+  writeStore(store); res.status(201).json({ plan });
+});
+app.put("/api/admin/plans/:productId/:planId", adminAuth, (req, res) => {
+  const store = readStore();
+  const product = store.products.find(p => p.id === req.params.productId);
+  const plan = product && (product.plans || []).find(x => x.id === req.params.planId);
+  if (!plan) return res.status(404).json({ error: "Duration not found." });
+  const { name, durationHours, price, active } = req.body || {};
+  if (typeof name === "string" && name.trim()) plan.name = name.trim();
+  if (Number.isFinite(Number(durationHours)) && Number(durationHours) >= 0) plan.durationHours = Number(durationHours);
+  if (Number.isFinite(Number(price)) && Number(price) >= 0) plan.price = Number(price);
+  if (typeof active === "boolean") plan.active = active;
+  writeStore(store); res.json({ plan });
+});
+app.delete("/api/admin/plans/:productId/:planId", adminAuth, (req, res) => {
+  const store = readStore();
+  const product = store.products.find(p => p.id === req.params.productId);
+  if (!product) return res.status(404).json({ error: "Product not found." });
+  product.plans = (product.plans || []).filter(x => x.id !== req.params.planId);
+  writeStore(store); res.json({ ok: true });
+});
+app.delete("/api/admin/products/:id", adminAuth, (req, res) => {
+  const store = readStore();
+  const before = store.products.length;
+  store.products = store.products.filter(p => p.id !== req.params.id);
+  if (before === store.products.length) return res.status(404).json({ error: "Product not found." });
+  writeStore(store); res.json({ ok: true });
+});
+
+app.listen(PORT, "0.0.0.0", () => console.log(`DELTA.KEYS running on port ${PORT} — automatic payment mode when Razorpay is configured`));
