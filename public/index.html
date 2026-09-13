@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111827"><title>DELTA.KEYS — Multi Server Panel</title><link rel="stylesheet" href="/styles.css"></head>
+<body class="store-page">
+<header class="topbar"><a class="wordmark" href="/">MULTI SERVER <span>PANEL</span></a><button class="hamburger" id="menuToggle" aria-label="Open menu">☰</button></header>
+<div class="side-menu" id="sideMenu" hidden><a href="/">⌂ <span>Home</span></a><a href="/products">▣ <span>Products</span></a><a href="/status">⌕ <span>Check Order</span></a><a href="/payment">▤ <span>Payment</span></a><a href="/admin">↪ <span>Login</span></a></div>
+<main class="access-wrap">
+  <section class="access-card">
+    <div class="access-head"><div class="kicker">DELTA.KEYS</div><h1>Select Access</h1><p>Premium keys with fast manual verification</p></div>
+    <form id="accessForm">
+      <label>PRODUCT</label><select id="productSelect" required><option value="">Choose your product</option></select>
+      <label>DURATION</label><select id="durationSelect" required><option value="">Choose duration</option><option>5 Hours</option><option>1 Day</option><option>7 Days</option><option>30 Days</option><option>Lifetime</option></select>
+      <button class="promo-row" type="button" id="promoToggle">🏷 <span>HAVE A PROMO CODE?</span><b>⌄</b></button>
+      <div id="promoBox" class="promo-box" hidden><input id="promoCode" placeholder="Enter promo code"><button type="button" id="applyPromo">Apply</button><small id="promoMsg"></small></div>
+      <button class="purchase-btn" type="submit">Purchase Access <span>→</span></button>
+      <p id="accessError" class="form-error"></p>
+    </form>
+  </section>
+  <div class="trust-line">◈ <span>Safe and secure manual key delivery</span></div>
+</main>
+<script>
+const menu=document.getElementById('sideMenu'); document.getElementById('menuToggle').onclick=()=>menu.hidden=!menu.hidden;
+const ps=document.getElementById('productSelect'); const form=document.getElementById('accessForm');
+(async()=>{try{const r=await fetch('/api/products');const items=await r.json();items.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=`${p.name} — ₹${Number(p.price).toFixed(0)}`;ps.appendChild(o)})}catch(e){document.getElementById('accessError').textContent='Unable to load products. Please refresh.'}})();
+document.getElementById('promoToggle').onclick=()=>document.getElementById('promoBox').hidden=!document.getElementById('promoBox').hidden;
+document.getElementById('applyPromo').onclick=()=>{const m=document.getElementById('promoMsg');m.textContent=document.getElementById('promoCode').value.trim()?'Promo will be checked at checkout.':'Enter a promo code.'};
+form.onsubmit=e=>{e.preventDefault(); if(!ps.value||!document.getElementById('durationSelect').value)return; location.href='/payment?product='+encodeURIComponent(ps.value)+'&duration='+encodeURIComponent(document.getElementById('durationSelect').value)};
+</script>
+</body></html>
