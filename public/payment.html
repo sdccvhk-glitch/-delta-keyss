@@ -1,0 +1,34 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>UPI Payment — DELTA.KEYS</title><link rel="stylesheet" href="/styles.css"></head>
+<body class="store-page payment-page">
+<header class="topbar"><a class="wordmark" href="/">DELTA.KEYS</a><button class="hamburger" id="menuToggle">☰</button></header>
+<div class="side-menu" id="sideMenu" hidden><a href="/">⌂ <span>Home</span></a><a href="/products">▣ <span>Products</span></a><a href="/status">⌕ <span>Check Order</span></a><a href="/admin">↪ <span>Login</span></a></div>
+<main class="payment-wrap"><section class="payment-card">
+<div class="payment-kicker">UPI CHECKOUT</div><h1 id="payProduct">Loading…</h1><div id="payDuration" class="muted"></div>
+<div class="amount-pill"><span>₹</span><b id="payAmount">0.00</b></div>
+<div id="gatewayArea" class="qr-panel">
+  <div class="gateway-logo">UPI PAYMENT</div>
+  <img id="upiQr" src="/upi-qr.jpg" alt="DELTA.KEYS UPI QR code" style="display:block;max-width:220px;width:100%;margin:12px auto;border-radius:14px">
+  <div id="upiPayee" class="muted"></div>
+  <button id="copyUpiButton" class="btn" type="button" style="margin:8px auto;display:block">Copy UPI ID</button>
+  <p id="upiId" class="scan-note">Pay the exact amount using UPI.</p>
+  <div id="paymentStep">
+    <p class="muted">Step 1: Start your UPI payment. On mobile, this opens your UPI app with the exact amount.</p>
+    <button id="startPaymentButton" class="open-upi" type="button">Pay Now with UPI</button>
+    <p class="muted" style="margin-top:10px">Or scan the QR code above. Do not enter a UTR before you have actually paid.</p>
+  </div>
+  <div id="utrStep" hidden>
+    <p class="muted"><strong>Step 2:</strong> Complete the payment, then enter the UTR/transaction ID shown by your UPI app.</p>
+    <p class="muted">Order ID: <strong id="orderId"></strong></p>
+    <form id="paymentForm">
+      <label>UPI TRANSACTION ID / UTR</label><input id="paymentReference" required maxlength="100" autocomplete="off" placeholder="Enter UTR after successful payment">
+      <button id="submitUtrButton" class="open-upi" type="submit">Submit UTR for Verification</button>
+    </form>
+  </div>
+</div>
+<div class="payment-check"><div class="check-line"></div><div class="check-row"><span>✓ Admin verification required</span><b id="timer">PENDING</b></div></div>
+<div id="result" class="result-box" hidden></div><p id="error" class="form-error"></p>
+<p class="payment-safe">◈ UPI payment • manual verification • key released only after the payment is verified</p>
+</section></main>
+<script src="/payment.js?v=5"></script>
+<script>const m=document.getElementById('sideMenu');document.getElementById('menuToggle').onclick=()=>m.hidden=!m.hidden;</script></body></html>
