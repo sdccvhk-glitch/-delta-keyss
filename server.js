@@ -1,0 +1,16 @@
+import express from 'express';
+import fs from 'fs';
+import crypto from 'crypto';
+const app=express(); app.use(express.json()); app.use(express.static('public'));
+const PORT=process.env.PORT||3000, USER=process.env.ADMIN_USER||'admin', PASS=process.env.ADMIN_PASSWORD||'CHANGE_ME', SECRET=process.env.API_SECRET||crypto.randomBytes(32).toString('hex'), DB='data.json';
+const db=()=>fs.existsSync(DB)?JSON.parse(fs.readFileSync(DB)):({keys:[]}); const save=x=>fs.writeFileSync(DB,JSON.stringify(x,null,2));
+const admin=(req,res,next)=>req.headers['x-admin-user']===USER&&req.headers['x-admin-password']===PASS?next():res.status(401).json({ok:false,error:'Admin authentication required'});
+const api=(req,res,next)=>req.headers.authorization===`Bearer ${SECRET}`?next():res.status(401).json({ok:false,error:'API authentication required'});
+const key=()=>`DELTA-${crypto.randomBytes(4).toString('hex').toUpperCase()}-${crypto.randomBytes(5).toString('hex').toUpperCase()}-${crypto.randomBytes(5).toString('hex').toUpperCase()}`;
+app.post('/api/login',api,(req,res)=>{const {game,user_key,serial}=req.body||{};if(!user_key||!serial)return res.status(400).json({ok:false,error:'user_key and serial are required'});let d=db(),k=d.keys.find(x=>x.key===String(user_key).trim());if(!k)return res.status(404).json({ok:false,error:'Invalid key'});if(k.blocked)return res.status(403).json({ok:false,error:'Key blocked'});if(game&&k.gameProfile!==game)return res.status(403).json({ok:false,error:'Wrong game profile'});if(k.expiresAt&&Date.now()>=Date.parse(k.expiresAt))return res.status(403).json({ok:false,error:'Key expired'});if(!k.devices.includes(serial)){if(k.devices.length>=k.deviceLimit)return res.status(403).json({ok:false,error:'Device limit reached'});k.devices.push(serial)}k.used=true;k.lastLoginAt=new Date().toISOString();save(d);res.json({ok:true,valid:true,key:k.key,expiry:k.expiresAt,deviceLimit:k.deviceLimit})});
+app.post('/admin/login',(req,res)=>req.body?.username===USER&&req.body?.password===PASS?res.json({ok:true,apiSecret:SECRET}):res.status(401).json({ok:false,error:'Invalid credentials'}));
+app.post('/admin/keys',admin,(req,res)=>{let {gameProfile='Belive',deviceLimit=1,licenseDays=30,batchQuantity=1}=req.body||{},d=db(),out=[];for(let i=0;i<Math.max(1,Math.min(500,+batchQuantity||1));i++){let days=+licenseDays||0;let k={key:key(),gameProfile,deviceLimit:Math.max(1,+deviceLimit||1),expiresAt:days?new Date(Date.now()+days*864e5).toISOString():null,blocked:false,used:false,devices:[],createdAt:new Date().toISOString()};d.keys.push(k);out.push(k)}save(d);res.json({ok:true,keys:out})});
+app.get('/admin/keys',admin,(req,res)=>res.json({ok:true,keys:db().keys}));
+for(const action of ['block','unblock'])app.post('/admin/keys/:key/'+action,admin,(req,res)=>{let d=db(),k=d.keys.find(x=>x.key===req.params.key);if(!k)return res.status(404).json({ok:false,error:'Not found'});k.blocked=action==='block';save(d);res.json({ok:true,key:k})});
+app.post('/admin/keys/:key/reset-devices',admin,(req,res)=>{let d=db(),k=d.keys.find(x=>x.key===req.params.key);if(!k)return res.status(404).json({ok:false,error:'Not found'});k.devices=[];k.used=false;save(d);res.json({ok:true,key:k})});
+app.listen(PORT,()=>console.log('DELTA panel on '+PORT));
