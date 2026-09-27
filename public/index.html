@@ -1,91 +1,511 @@
-
 <!doctype html>
 <html>
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>WE FEAR NONE</title><link rel="stylesheet" href="/style.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WE FEAR NONE</title>
+<link rel="stylesheet" href="/style.css">
 </head>
-<body>
-<div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div>
-<div id="toast"></div>
-<header><div class="logo">WE FEAR NONE <small>LICENSE CONTROL</small></div><button id="logout" class="ghost hidden">Logout</button></header>
 
+<body>
+<div class="orb o1"></div>
+<div class="orb o2"></div>
+<div class="orb o3"></div>
+
+<div id="toast"></div>
+
+<header>
+  <div class="logo">
+    WE FEAR NONE
+    <small>LICENSE CONTROL</small>
+  </div>
+  <button id="logout" class="ghost hidden">Logout</button>
+</header>
+
+<!-- AUTH -->
 <div id="auth" class="auth card">
+
   <div class="logo big">WE FEAR NONE</div>
   <p class="muted">License management & APK authentication</p>
-  <div class="tabs"><button class="tab active" data-tab="login">Login</button><button class="tab" data-tab="register">Register</button></div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="login">Login</button>
+    <button class="tab" data-tab="register">Register</button>
+  </div>
+
   <div id="loginBox">
-    <input id="loginUser" placeholder="Username"><input id="loginPass" type="password" placeholder="Password">
+    <input id="loginUser" placeholder="Username">
+    <input id="loginPass" type="password" placeholder="Password">
     <button id="loginBtn" class="primary">Login</button>
-    
   </div>
+
   <div id="registerBox" class="hidden">
-    <input id="regUser" placeholder="Username"><input id="regPass" type="password" placeholder="Password">
-<input id="regRef" placeholder="Referral code (required)" required>
-    <button id="regBtn" class="primary">Create Account</button>
+    <input id="regUser" placeholder="Username">
+    <input id="regPass" type="password" placeholder="Password">
+
+    <input id="regRef" placeholder="Referral code">
+
+    <button id="regBtn" class="primary">
+      Create Account
+    </button>
   </div>
+
 </div>
 
+<!-- PANEL -->
 <div id="panel" class="layout hidden">
+
   <aside>
     <div class="side-title">WFN</div>
-    <button class="nav active" data-page="dashboard">⌂ Dashboard</button>
-    <button class="nav" data-page="licenses">🔑 Licenses</button>
-    <button class="nav" data-page="generate">＋ Generate Keys</button>
-    <button class="nav" data-page="users" id="usersNav">♙ Users</button>
-    <button class="nav" data-page="balance">₹ Balance</button>
-    <button class="nav" data-page="referrals">↗ Referrals</button>
-    <button class="nav" data-page="profile">◉ Profile</button>
-    <button class="nav" data-page="settings" id="settingsNav">⚙ Settings</button>
+
+    <button class="nav active" data-page="dashboard">
+      ⌂ Dashboard
+    </button>
+
+    <button class="nav" data-page="licenses">
+      🔑 Licenses
+    </button>
+
+    <button class="nav" data-page="generate">
+      ＋ Generate Keys
+    </button>
+
+    <button class="nav" data-page="users" id="usersNav">
+      ♙ Users
+    </button>
+
+    <button class="nav" data-page="balance">
+      ₹ Balance
+    </button>
+
+    <button class="nav" data-page="referrals">
+      ↗ Referrals
+    </button>
+
+    <button class="nav" data-page="profile">
+      ◉ Profile
+    </button>
+
+    <button class="nav" data-page="settings" id="settingsNav">
+      ⚙ Settings
+    </button>
   </aside>
+
   <main>
-    <div class="top"><div><span class="eyebrow">CONTROL CENTER</span><h1 id="pageTitle">Dashboard</h1></div><div id="who"></div></div>
 
-    <section id="dashboard" class="page">
-      <div class="stats"><div class="stat"><span>USERS</span><b id="stUsers">0</b></div><div class="stat"><span>LICENSES</span><b id="stLicenses">0</b></div><div class="stat"><span>ACTIVE</span><b id="stActive">0</b></div><div class="stat"><span>BALANCE</span><b id="stBalance">₹0</b></div></div>
-      <div class="grid2"><div class="card"><h3>Account</h3><div id="accountInfo"></div></div><div class="card"><h3>Quick Actions</h3><div class="actions"><button data-page="generate" class="primary">Generate Keys</button><button data-page="licenses">Manage Licenses</button><button data-page="profile">Edit Profile</button></div></div></div>
-    </section>
-
-    <section id="licenses" class="page hidden">
-      <div class="card"><div class="row"><h3>License Inventory</h3><button id="refreshLicenses">Refresh</button></div>
-      <div class="tablewrap"><table><thead><tr><th>Key</th><th>Type</th><th>Price</th><th>Status</th><th>Device</th><th>Expires</th><th>Actions</th></tr></thead><tbody id="licenseRows"></tbody></table></div></div>
-    </section>
-
-    <section id="generate" class="page hidden">
-      <div class="grid2">
-        <div class="card"><h3>Random / Custom Key Generator</h3>
-          <input id="customKey" placeholder="Custom key (optional)">
-          <input id="keyCount" type="number" min="1" max="100" value="1" placeholder="Quantity">
-          <input id="keyDays" type="number" min="1" value="30" placeholder="Duration in days">
-          <input id="keyType" placeholder="License type">
-          <input id="keyPrice" type="number" min="0" value="100" placeholder="Price">
-          <button id="generateBtn" class="primary">Generate Keys</button><pre id="generated"></pre>
-        </div>
-        <div class="card"><h3>Bulk Controls</h3>
-          <input id="extendAllDays" type="number" value="30" min="1"><button id="extendAll">Extend All Keys</button>
-          <button id="resetAll">Reset All Device Bindings</button>
-          <button id="deleteAll" class="danger ownerOnly">Delete All Keys</button>
-        </div>
+    <div class="top">
+      <div>
+        <span class="eyebrow">CONTROL CENTER</span>
+        <h1 id="pageTitle">Dashboard</h1>
       </div>
+
+      <div id="who"></div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <section id="dashboard" class="page">
+
+      <div class="stats">
+
+        <div class="stat">
+          <span>USERS</span>
+          <b id="stUsers">0</b>
+        </div>
+
+        <div class="stat">
+          <span>LICENSES</span>
+          <b id="stLicenses">0</b>
+        </div>
+
+        <div class="stat">
+          <span>ACTIVE</span>
+          <b id="stActive">0</b>
+        </div>
+
+        <div class="stat">
+          <span>BALANCE</span>
+          <b id="stBalance">₹0</b>
+        </div>
+
+      </div>
+
+      <div class="grid2">
+
+        <div class="card">
+          <h3>Account</h3>
+          <div id="accountInfo"></div>
+        </div>
+
+        <div class="card">
+          <h3>Quick Actions</h3>
+
+          <div class="actions">
+            <button data-page="generate" class="primary">
+              Generate Keys
+            </button>
+
+            <button data-page="licenses">
+              Manage Licenses
+            </button>
+
+            <button data-page="referrals">
+              Referral Codes
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
     </section>
 
-    <section id="users" class="page hidden"><div class="card"><div class="row"><h3>User Management</h3><button id="refreshUsers">Refresh</button></div><div class="tablewrap"><table><thead><tr><th>User</th><th>Role</th><th>Balance</th><th>Referral</th><th>Actions</th></tr></thead><tbody id="userRows"></tbody></table></div></div></section>
+    <!-- LICENSES -->
+    <section id="licenses" class="page hidden">
 
-    <section id="balance" class="page hidden"><div class="card"><h3>Add / Remove Balance</h3><p class="muted">Owner/Admin can adjust reseller balances.</p><input id="balUser" placeholder="User ID"><input id="balAmount" type="number" placeholder="Amount (+ add / - remove)"><input id="balNote" placeholder="Note"><button id="balBtn" class="primary">Update Balance</button></div></section>
+      <div class="card">
 
-    <section id="referrals" class="page hidden"><div class="card"><h3>Referral System</h3><p>Your referral code</p><div class="refcode" id="refCode">—</div><p class="muted">Reward per referred registration: <span id="refReward">0</span></p><div class="tablewrap"><table><thead><tr><th>User</th><th>Reward</th><th>Date</th></tr></thead><tbody id="refRows"></tbody></table></div></div></section>
+        <div class="row">
+          <h3>License Inventory</h3>
+          <button id="refreshLicenses">Refresh</button>
+        </div>
 
-    <section id="profile" class="page hidden"><div class="grid2">
-      <div class="card"><h3>Change Username</h3><input id="newUsername" placeholder="New username"><button id="usernameBtn" class="primary">Save Username</button></div>
-      <div class="card"><h3>Change Password</h3><input id="newPassword" type="password" placeholder="New password"><button id="passwordBtn" class="primary">Change Password</button></div>
-    </div></section>
+        <div class="tablewrap">
 
-    <section id="settings" class="page hidden"><div class="card"><h3>Panel / License Settings</h3>
-      <input id="setPanel" placeholder="Panel name"><input id="setLicense" placeholder="License name"><input id="setPrice" type="number" placeholder="Default key price"><input id="setReward" type="number" placeholder="Referral reward">
-      <button id="saveSettings" class="primary">Save Settings</button>
-      <p class="muted">Owner only. Changes apply to the panel configuration and future keys.</p>
-    </div></section>
+          <table>
+
+            <thead>
+              <tr>
+                <th>Key</th>
+                <th>Type</th>
+                <th>Price</th>
+                <th>Status</th>
+                <th>Device</th>
+                <th>Expires</th>
+              </tr>
+            </thead>
+
+            <tbody id="licenseRows"></tbody>
+
+          </table>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- GENERATE -->
+    <section id="generate" class="page hidden">
+
+      <div class="grid2">
+
+        <div class="card">
+
+          <h3>Generate License</h3>
+
+          <input id="customKey"
+                 placeholder="Custom key (optional)">
+
+          <input id="keyCount"
+                 type="number"
+                 min="1"
+                 max="100"
+                 value="1"
+                 placeholder="Quantity">
+
+          <input id="keyDays"
+                 type="number"
+                 min="1"
+                 value="30"
+                 placeholder="Duration">
+
+          <input id="keyType"
+                 placeholder="License type"
+                 value="Standard">
+
+          <input id="keyPrice"
+                 type="number"
+                 min="0"
+                 value="100"
+                 placeholder="Price">
+
+          <button id="generateBtn" class="primary">
+            Generate Keys
+          </button>
+
+          <pre id="generated"></pre>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- USERS -->
+    <section id="users" class="page hidden">
+
+      <div class="card">
+
+        <div class="row">
+          <h3>User Management</h3>
+          <button id="refreshUsers">Refresh</button>
+        </div>
+
+        <div class="tablewrap">
+
+          <table>
+
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Role</th>
+                <th>Balance</th>
+                <th>Referral</th>
+              </tr>
+            </thead>
+
+            <tbody id="userRows"></tbody>
+
+          </table>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- BALANCE -->
+    <section id="balance" class="page hidden">
+
+      <div class="card">
+
+        <h3>Add / Remove Balance</h3>
+
+        <p class="muted">
+          Owner/Admin can adjust reseller balances.
+        </p>
+
+        <input id="balUser"
+               placeholder="User ID">
+
+        <input id="balAmount"
+               type="number"
+               placeholder="Amount (+ add / - remove)">
+
+        <input id="balNote"
+               placeholder="Note">
+
+        <button id="balBtn" class="primary">
+          Update Balance
+        </button>
+
+      </div>
+
+    </section>
+
+    <!-- REFERRALS -->
+    <section id="referrals" class="page hidden">
+
+      <div class="grid2">
+
+        <!-- CREATE REFERRAL -->
+        <div class="card" id="createReferralCard">
+
+          <h3>Create Referral Code</h3>
+
+          <p class="muted">
+            Select the balance that the new user receives.
+          </p>
+
+          <input
+            id="referralCodeInput"
+            placeholder="Custom code (optional)"
+            maxlength="40"
+          >
+
+          <select id="referralBalance">
+
+            <option value="0">₹0</option>
+            <option value="50">₹50</option>
+            <option value="100" selected>₹100</option>
+            <option value="200">₹200</option>
+            <option value="500">₹500</option>
+            <option value="1000">₹1000</option>
+            <option value="2000">₹2000</option>
+            <option value="5000">₹5000</option>
+
+          </select>
+
+          <button
+            id="createReferralBtn"
+            class="primary">
+            Create Referral Code
+          </button>
+
+          <div id="newReferralResult"></div>
+
+        </div>
+
+        <!-- MY REFERRAL -->
+        <div class="card">
+
+          <h3>My Referral</h3>
+
+          <p>Your personal referral code</p>
+
+          <div class="refcode" id="refCode">
+            —
+          </div>
+
+          <p class="muted">
+            Reward:
+            <span id="refReward">₹0</span>
+          </p>
+
+        </div>
+
+      </div>
+
+      <!-- REFERRAL LIST -->
+      <div class="card">
+
+        <div class="row">
+
+          <h3>Created Referral Codes</h3>
+
+          <button id="refreshReferralCodes">
+            Refresh
+          </button>
+
+        </div>
+
+        <div class="tablewrap">
+
+          <table>
+
+            <thead>
+
+              <tr>
+                <th>Code</th>
+                <th>Balance</th>
+                <th>Status</th>
+                <th>Created</th>
+              </tr>
+
+            </thead>
+
+            <tbody id="referralCodeRows"></tbody>
+
+          </table>
+
+        </div>
+
+      </div>
+
+      <div class="card">
+
+        <h3>Referral History</h3>
+
+        <div class="tablewrap">
+
+          <table>
+
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Reward</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+
+            <tbody id="refRows"></tbody>
+
+          </table>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- PROFILE -->
+    <section id="profile" class="page hidden">
+
+      <div class="grid2">
+
+        <div class="card">
+
+          <h3>Change Username</h3>
+
+          <input
+            id="newUsername"
+            placeholder="New username">
+
+          <button
+            id="usernameBtn"
+            class="primary">
+            Save Username
+          </button>
+
+        </div>
+
+        <div class="card">
+
+          <h3>Change Password</h3>
+
+          <input
+            id="newPassword"
+            type="password"
+            placeholder="New password">
+
+          <button
+            id="passwordBtn"
+            class="primary">
+            Change Password
+          </button>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="settings" class="page hidden">
+
+      <div class="card">
+
+        <h3>Panel / License Settings</h3>
+
+        <input id="setPanel"
+               placeholder="Panel name">
+
+        <input id="setLicense"
+               placeholder="License name">
+
+        <input id="setPrice"
+               type="number"
+               placeholder="Default key price">
+
+        <input id="setReward"
+               type="number"
+               placeholder="Referral reward">
+
+        <button
+          id="saveSettings"
+          class="primary">
+          Save Settings
+        </button>
+
+      </div>
+
+    </section>
+
   </main>
+
 </div>
+
 <script src="/app.js"></script>
-</body></html>
+
+</body>
+</html>
