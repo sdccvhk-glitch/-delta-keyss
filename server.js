@@ -455,9 +455,7 @@ app.get("/api/admin/users", auth, adminOnly, (req, res) => {
 const publicDir = path.join(__dirname, "public");
 app.use(express.static(publicDir));
 
-app.get("/{*splat}", (req, res) => {
-  res.sendFile(path.join(publicDir, "index.html"));
-});
+
 
 app.use((err, req, res, next) => {
   console.error(err);
