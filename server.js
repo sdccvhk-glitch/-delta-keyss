@@ -9,7 +9,15 @@ const Database = require("better-sqlite3");
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "CHANGE_ME_BEFORE_PRODUCTION";
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, "data", "wfn.sqlite");
+const fs = require("fs");
+
+const DB_DIR = process.env.DB_PATH
+  ? path.dirname(process.env.DB_PATH)
+  : path.join(__dirname, "data");
+
+fs.mkdirSync(DB_DIR, { recursive: true });
+
+const DB_PATH = process.env.DB_PATH || path.join(DB_DIR, "wfn.sqlite");
 
 const db = new Database(DB_PATH);
 db.pragma("journal_mode = WAL");
