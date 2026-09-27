@@ -1,1 +1,0 @@
-{"name":"delta-license-server","version":"1.0.0","private":true,"type":"module","scripts":{"start":"node server.js"},"dependencies":{"better-sqlite3":"^11.7.0","express":"^5.1.0","helmet":"^8.1.0"}}
